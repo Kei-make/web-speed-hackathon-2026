@@ -10,77 +10,52 @@ interface Props {
 
 /**
  * クリックすると再生・一時停止を切り替えます。
- * ブラウザネイティブの Image で GIF を読み込み、canvas に描画します。
+ * 再生中はネイティブの img で GIF を表示し、一時停止時だけ canvas に静止フレームを描画します。
  */
 export const PausableMovie = ({ src }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imgRef = useRef<HTMLImageElement | null>(null);
-  const rafIdRef = useRef<number>(0);
-  const isAnimatingRef = useRef(false);
+  const imageRef = useRef<HTMLImageElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  const startLoop = useCallback(() => {
+  const drawCurrentFrame = useCallback(() => {
     const canvas = canvasRef.current;
-    const img = imgRef.current;
+    const img = imageRef.current;
     if (!canvas || !img) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    isAnimatingRef.current = true;
-    const draw = () => {
-      if (!isAnimatingRef.current) return;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      rafIdRef.current = requestAnimationFrame(draw);
-    };
-    rafIdRef.current = requestAnimationFrame(draw);
-  }, []);
-
-  const stopLoop = useCallback(() => {
-    isAnimatingRef.current = false;
-    if (rafIdRef.current) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = 0;
-    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   }, []);
 
   useEffect(() => {
-    const img = new Image();
-    imgRef.current = img;
+    setIsLoaded(false);
+    setIsPlaying(true);
+  }, [src]);
 
-    img.onload = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+  const handleLoad = useCallback(() => {
+    const img = imageRef.current;
+    const canvas = canvasRef.current;
+    if (!img || !canvas) return;
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    setIsLoaded(true);
 
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        setIsPlaying(false);
-      } else {
-        setIsPlaying(true);
-        startLoop();
-      }
-    };
-
-    img.src = src;
-
-    return () => {
-      stopLoop();
-      img.onload = null;
-      imgRef.current = null;
-    };
-  }, [src, startLoop, stopLoop]);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      drawCurrentFrame();
+      setIsPlaying(false);
+    }
+  }, [drawCurrentFrame]);
 
   const handleClick = useCallback(() => {
+    if (!isLoaded) return;
     setIsPlaying((prev) => {
       if (prev) {
-        stopLoop();
-      } else {
-        startLoop();
+        drawCurrentFrame();
       }
       return !prev;
     });
-  }, [startLoop, stopLoop]);
+  }, [drawCurrentFrame, isLoaded]);
 
   return (
     <AspectRatioBox aspectHeight={1} aspectWidth={1}>
@@ -90,7 +65,21 @@ export const PausableMovie = ({ src }: Props) => {
         onClick={handleClick}
         type="button"
       >
-        <canvas ref={canvasRef} className="w-full" />
+        <img
+          ref={imageRef}
+          alt=""
+          className={classNames("h-full w-full object-cover", {
+            hidden: !isPlaying,
+          })}
+          onLoad={handleLoad}
+          src={src}
+        />
+        <canvas
+          ref={canvasRef}
+          className={classNames("h-full w-full object-cover", {
+            hidden: isPlaying,
+          })}
+        />
         <div
           className={classNames(
             "absolute left-1/2 top-1/2 flex items-center justify-center w-16 h-16 text-cax-surface-raised text-3xl bg-cax-overlay/50 rounded-full -translate-x-1/2 -translate-y-1/2",

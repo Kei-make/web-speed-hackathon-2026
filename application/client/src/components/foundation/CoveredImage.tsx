@@ -44,7 +44,6 @@ export const CoveredImage = ({ src }: Props) => {
       <img
         alt={alt}
         className="absolute inset-0 h-full w-full object-cover"
-        loading="lazy"
         src={src}
       />
 
