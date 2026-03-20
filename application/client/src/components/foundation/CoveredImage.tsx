@@ -16,6 +16,7 @@ interface Props {
  */
 export const CoveredImage = ({ src }: Props) => {
   const dialogId = useId();
+  const latin1Decoder = useMemo(() => new TextDecoder("latin1"), []);
   // ダイアログの背景をクリックしたときに投稿詳細ページに遷移しないようにする
   const handleDialogClick = useCallback((ev: MouseEvent<HTMLDialogElement>) => {
     ev.stopPropagation();
@@ -26,7 +27,7 @@ export const CoveredImage = ({ src }: Props) => {
   const alt = useMemo(() => {
     if (data == null) return "";
     try {
-      const binary = Array.from(new Uint8Array(data), (b) => String.fromCharCode(b)).join("");
+      const binary = latin1Decoder.decode(new Uint8Array(data));
       const exif = load(binary);
       const raw = exif?.["0th"]?.[ImageIFD.ImageDescription];
       if (raw == null) return "";
@@ -36,7 +37,7 @@ export const CoveredImage = ({ src }: Props) => {
     } catch {
       return "";
     }
-  }, [data]);
+  }, [data, latin1Decoder]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">

@@ -7,11 +7,21 @@ interface ParsedData {
 
 const PEAK_COUNT = 100;
 const parsedDataCache = new Map<ArrayBuffer, ParsedData>();
+const EMPTY_PARSED_DATA: ParsedData = {
+  max: 1,
+  peaks: Array.from({ length: PEAK_COUNT }, () => 0),
+};
 
 let sharedAudioContext: AudioContext | null = null;
 
-function getAudioContext(): AudioContext {
-  sharedAudioContext ??= new AudioContext();
+function getAudioContext(): AudioContext | null {
+  if (sharedAudioContext) return sharedAudioContext;
+
+  const AudioContextCtor =
+    window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (AudioContextCtor == null) return null;
+
+  sharedAudioContext = new AudioContextCtor();
   return sharedAudioContext;
 }
 
@@ -22,6 +32,10 @@ async function calculate(data: ArrayBuffer): Promise<ParsedData> {
   }
 
   const audioCtx = getAudioContext();
+  if (audioCtx == null) {
+    parsedDataCache.set(data, EMPTY_PARSED_DATA);
+    return EMPTY_PARSED_DATA;
+  }
 
   // 音声をデコードする
   const buffer = await audioCtx.decodeAudioData(data.slice(0));
