@@ -96,6 +96,49 @@ const config = {
       inject: true,
       template: path.resolve(SRC_PATH, "./index.html"),
     }),
+    {
+      apply: (compiler) => {
+        compiler.hooks.compilation.tap("DeferMainCssPlugin", (compilation) => {
+          HtmlWebpackPlugin.getHooks(compilation).alterAssetTagGroups.tap(
+            "DeferMainCssPlugin",
+            (data) => {
+              const deferredStyleTags = [];
+
+              data.headTags = data.headTags.map((tag) => {
+                if (
+                  tag.tagName === "link" &&
+                  tag.attributes?.rel === "stylesheet" &&
+                  typeof tag.attributes?.href === "string" &&
+                  tag.attributes.href.includes("styles/main.css")
+                ) {
+                  deferredStyleTags.push({
+                    tagName: "noscript",
+                    voidTag: false,
+                    meta: { plugin: "html-webpack-plugin" },
+                    innerHTML: `<link rel=\"stylesheet\" href=\"${tag.attributes.href}\">`,
+                  });
+
+                  return {
+                    ...tag,
+                    attributes: {
+                      ...tag.attributes,
+                      rel: "preload",
+                      as: "style",
+                      onload: "this.onload=null;this.rel='stylesheet'",
+                    },
+                  };
+                }
+
+                return tag;
+              });
+
+              data.headTags.push(...deferredStyleTags);
+              return data;
+            },
+          );
+        });
+      },
+    },
     ...(SHOULD_ANALYZE
       ? [
           new BundleAnalyzerPlugin({
