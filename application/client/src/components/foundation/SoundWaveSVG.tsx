@@ -5,29 +5,52 @@ interface ParsedData {
   peaks: number[];
 }
 
+const PEAK_COUNT = 100;
+const parsedDataCache = new Map<ArrayBuffer, ParsedData>();
+
+let sharedAudioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  sharedAudioContext ??= new AudioContext();
+  return sharedAudioContext;
+}
+
 async function calculate(data: ArrayBuffer): Promise<ParsedData> {
-  const audioCtx = new AudioContext();
+  const cached = parsedDataCache.get(data);
+  if (cached) {
+    return cached;
+  }
+
+  const audioCtx = getAudioContext();
 
   // 音声をデコードする
   const buffer = await audioCtx.decodeAudioData(data.slice(0));
-  // 左の音声データの絶対値を取る
-  const leftData = Array.from(buffer.getChannelData(0), Math.abs);
-  // 右の音声データの絶対値を取る
-  const rightData = Array.from(buffer.getChannelData(1), Math.abs);
 
-  // 左右の音声データの平均を取る
-  const normalized = leftData.map((l, i) => (l + rightData[i]!) / 2);
-  // 100 個の chunk に分ける
-  const chunkSize = Math.ceil(normalized.length / 100);
+  const leftData = buffer.getChannelData(0);
+  const rightData = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : leftData;
+
+  // 左右の平均振幅を 100 chunk に圧縮する
+  const chunkSize = Math.ceil(leftData.length / PEAK_COUNT);
   const peaks: number[] = [];
-  for (let i = 0; i < normalized.length; i += chunkSize) {
-    const chunk = normalized.slice(i, i + chunkSize);
-    peaks.push(chunk.reduce((a, b) => a + b, 0) / chunk.length);
+  for (let i = 0; i < leftData.length; i += chunkSize) {
+    const end = Math.min(i + chunkSize, leftData.length);
+    let sum = 0;
+    let count = 0;
+
+    for (let j = i; j < end; j++) {
+      sum += (Math.abs(leftData[j] ?? 0) + Math.abs(rightData[j] ?? 0)) / 2;
+      count++;
+    }
+
+    peaks.push(count > 0 ? sum / count : 0);
   }
   // chunk の平均の中から最大値を取る
   const max = Math.max(...peaks, 0);
 
-  return { max, peaks };
+  const parsed = { max, peaks };
+  parsedDataCache.set(data, parsed);
+
+  return parsed;
 }
 
 interface Props {
@@ -42,9 +65,19 @@ export const SoundWaveSVG = ({ soundData }: Props) => {
   });
 
   useEffect(() => {
+    let isMounted = true;
+
     calculate(soundData).then(({ max, peaks }) => {
+      if (!isMounted) {
+        return;
+      }
+
       setPeaks({ max, peaks });
     });
+
+    return () => {
+      isMounted = false;
+    };
   }, [soundData]);
 
   return (
