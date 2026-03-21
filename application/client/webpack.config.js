@@ -87,20 +87,18 @@ const config = {
     }),
     {
       apply: (compiler) => {
-        compiler.hooks.compilation.tap("DeferMainCssPlugin", (compilation) => {
+        compiler.hooks.compilation.tap("DeferAllCssPlugin", (compilation) => {
           HtmlWebpackPlugin.getHooks(compilation).alterAssetTagGroups.tap(
-            "DeferMainCssPlugin",
+            "DeferAllCssPlugin",
             (data) => {
-              const deferredStyleTags = [];
+              const noscriptTags = [];
 
               data.headTags = data.headTags.map((tag) => {
                 if (
                   tag.tagName === "link" &&
-                  tag.attributes?.rel === "stylesheet" &&
-                  typeof tag.attributes?.href === "string" &&
-                  tag.attributes.href.includes("styles/main.css")
+                  tag.attributes?.rel === "stylesheet"
                 ) {
-                  deferredStyleTags.push({
+                  noscriptTags.push({
                     tagName: "noscript",
                     voidTag: false,
                     meta: { plugin: "html-webpack-plugin" },
@@ -121,7 +119,7 @@ const config = {
                 return tag;
               });
 
-              data.headTags.push(...deferredStyleTags);
+              data.headTags.push(...noscriptTags);
               return data;
             },
           );
