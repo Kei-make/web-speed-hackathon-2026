@@ -7,6 +7,7 @@ import { fetchBinary } from "@web-speed-hackathon-2026/client/src/utils/fetchers
 
 interface Props {
   src: string;
+  alt?: string;
   loading?: "eager" | "lazy";
 }
 
@@ -14,7 +15,7 @@ interface Props {
  * アスペクト比を維持したまま、要素のコンテンツボックス全体を埋めるように画像を拡大縮小します。
  * object-fit: cover を利用してブラウザに cover 計算を委ねます。
  */
-export const CoveredImage = ({ src, loading = "lazy" }: Props) => {
+export const CoveredImage = ({ src, alt: altProp = "", loading = "lazy" }: Props) => {
   const dialogId = useId();
   const latin1Decoder = useMemo(() => new TextDecoder("latin1"), []);
   // ダイアログの背景をクリックしたときに投稿詳細ページに遷移しないようにする
@@ -22,9 +23,13 @@ export const CoveredImage = ({ src, loading = "lazy" }: Props) => {
     ev.stopPropagation();
   }, []);
 
-  // EXIF から alt テキストを取得（画像表示後に遅延で取得）
-  const [alt, setAlt] = useState("");
+  // サーバーから alt が提供されていない場合のみ EXIF からフォールバック取得
+  const [alt, setAlt] = useState(altProp);
   useEffect(() => {
+    setAlt(altProp);
+  }, [altProp]);
+  useEffect(() => {
+    if (altProp) return;
     const id = requestIdleCallback(() => {
       fetchBinary(src).then((data) => {
         try {
@@ -39,7 +44,7 @@ export const CoveredImage = ({ src, loading = "lazy" }: Props) => {
       }).catch(() => {});
     });
     return () => cancelIdleCallback(id);
-  }, [src, latin1Decoder]);
+  }, [src, latin1Decoder, altProp]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">

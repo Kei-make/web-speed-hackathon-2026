@@ -69,6 +69,10 @@ export const PausableMovie = ({ src, loading = "lazy", disableClick = false }: P
         onClick={handleClick}
         type="button"
       >
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
         <img
           ref={imageRef}
           alt=""
@@ -80,12 +84,6 @@ export const PausableMovie = ({ src, loading = "lazy", disableClick = false }: P
           loading={loading}
           onLoad={handleLoad}
           src={src}
-        />
-        <canvas
-          ref={canvasRef}
-          className={classNames("absolute inset-0 h-full w-full object-cover", {
-            hidden: isPlaying,
-          })}
         />
         <div
           className={classNames(

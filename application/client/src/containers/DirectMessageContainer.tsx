@@ -88,7 +88,15 @@ export const DirectMessageContainer = ({ activeUser, authModalId }: Props) => {
     if (event.type === "dm:conversation:message") {
       setConversation((prev) => {
         if (prev == null) return prev;
-        if (prev.messages.some((message) => message.id === event.payload.id)) return prev;
+        if (prev.messages.some((message) => message.id === event.payload.id)) {
+          // 既存メッセージの更新（isRead 変更など）
+          return {
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.id === event.payload.id ? event.payload : m,
+            ),
+          };
+        }
         return {
           ...prev,
           messages: [...prev.messages, event.payload],
