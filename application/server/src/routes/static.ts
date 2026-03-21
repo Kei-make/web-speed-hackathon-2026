@@ -15,6 +15,7 @@ export const staticRouter = Router();
 function setCacheHeaders(req: Request, res: Response, next: NextFunction) {
   const path = req.path.startsWith("/") ? req.path : `/${req.path}`;
   const isVersionedAsset =
+    path.startsWith("/assets/") ||
     path.startsWith("/scripts/") ||
     path.startsWith("/styles/") ||
     path.startsWith("/static/") ||

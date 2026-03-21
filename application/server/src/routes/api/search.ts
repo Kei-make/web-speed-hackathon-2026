@@ -35,10 +35,12 @@ searchRouter.get("/search", async (req, res) => {
   const dateWhere =
     dateConditions.length > 0 ? { createdAt: Object.assign({}, ...dateConditions) } : {};
 
-  // テキスト検索と ユーザー名/名前での検索を Op.or で統合
+  // テキスト検索とユーザー名/名前での検索を Op.or で統合
   const orConditions: Array<Record<string, unknown>> = [];
   if (searchTerm) {
     orConditions.push({ text: { [Op.like]: searchTerm } });
+    orConditions.push({ "$user.username$": { [Op.like]: searchTerm } });
+    orConditions.push({ "$user.name$": { [Op.like]: searchTerm } });
   }
 
   const posts = await Post.findAll({
@@ -47,15 +49,7 @@ searchRouter.get("/search", async (req, res) => {
         association: "user",
         attributes: { exclude: ["profileImageId"] },
         include: [{ association: "profileImage" }],
-        required: searchTerm ? true : false,
-        where: searchTerm
-          ? {
-              [Op.or]: [
-                { username: { [Op.like]: searchTerm } },
-                { name: { [Op.like]: searchTerm } },
-              ],
-            }
-          : undefined,
+        required: true,
       },
       {
         association: "images",
